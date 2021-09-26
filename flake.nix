@@ -22,6 +22,8 @@
     devShell = mkShell {
       buildInputs = [
         rust-bin.stable.latest.default
+        openssl.dev
+        pkg-config
       ];
     };
   });
