@@ -22,6 +22,7 @@
     devShell = mkShell {
       buildInputs = [
         rust-bin.stable.latest.default
+        cargo-watch
         openssl.dev
         pkg-config
       ];
