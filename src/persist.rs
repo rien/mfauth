@@ -1,3 +1,5 @@
+use chrono::serde::ts_seconds;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -25,16 +27,33 @@ pub struct AccountConfig {
 	pub scope: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tokens {
 	pub access_token: String,
+	#[serde(with = "ts_seconds")]
+	pub expiration: DateTime<Utc>,
 	pub refresh_token: String,
+}
+
+impl Tokens {
+	pub fn access_token_expired(&self) -> bool {
+		self.expiration < Utc::now()
+	}
 }
 
 #[derive(Debug)]
 pub struct Account {
 	pub conf: AccountConfig,
 	pub tokens: Option<Tokens>,
+}
+
+impl Account {
+	pub fn needs_refresh(&self) -> bool {
+		if let Some(tokens) = &self.tokens {
+			return tokens.access_token_expired();
+		}
+		false
+	}
 }
 
 #[derive(Debug)]
@@ -66,13 +85,16 @@ impl Store {
 		})
 	}
 
-	pub fn write(self, opts: &Opts) -> std::io::Result<()> {
+	pub fn write(&self, opts: &Opts) -> std::io::Result<()> {
 		let cache = Cache {
 			accounts: self
 				.accounts
-				.into_iter()
+				.iter()
 				.filter_map(|(name, account)| {
-					account.tokens.map(|tokens| (name, tokens))
+					account
+						.tokens
+						.as_ref()
+						.map(|tokens| (name.to_string(), tokens.clone()))
 				})
 				.collect(),
 		};

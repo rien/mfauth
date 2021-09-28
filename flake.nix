@@ -23,6 +23,7 @@
       buildInputs = [
         rust-bin.stable.latest.default
         cargo-watch
+        cargo-limit
         openssl.dev
         pkg-config
       ];

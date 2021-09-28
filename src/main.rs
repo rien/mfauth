@@ -1,7 +1,6 @@
 extern crate clap;
 extern crate hyper;
 extern crate hyper_tls;
-extern crate open;
 extern crate serde;
 extern crate tokio;
 extern crate toml;
@@ -9,12 +8,15 @@ extern crate url;
 
 mod persist;
 
+use chrono::{Duration, Utc};
 use clap::Clap;
 use hyper::body;
 use hyper::{Body, Client, Method, Request};
 use hyper_tls::HttpsConnector;
+use serde::Deserialize;
 use url::Url;
 
+use std::borrow::Borrow;
 use std::io::{stdin, stdout, Write};
 
 use crate::persist::*;
@@ -38,17 +40,21 @@ pub struct Opts {
 #[derive(Clap, Debug, Clone)]
 enum Action {
 	Authorize(Authorize),
+	Access(Access),
 }
 
-/// Get an access token
+/// Authorize an account (fetch an access and refresh token)
 #[derive(Clap, Debug, Clone)]
 struct Authorize {
 	/// Account to authorize
 	account: String,
+}
 
-	/// Open your browser automatically
-	#[clap(short, long)]
-	open: bool,
+/// Get an access token
+#[derive(Clap, Debug, Clone)]
+struct Access {
+	/// Account to get an access token for
+	account: String,
 }
 
 #[derive(Debug)]
@@ -71,24 +77,46 @@ impl Runner {
 		})
 	}
 
-	pub fn persist(self) -> std::io::Result<()> {
+	pub fn persist(&self) -> std::io::Result<()> {
 		self.store.write(&self.opts)
 	}
 
 	pub async fn run(self) -> std::io::Result<()> {
 		match self.opts.action.clone() {
 			Action::Authorize(auth) => self.authorize(&auth.account).await,
+			Action::Access(auth) => self.get_access_token(&auth.account).await,
 		}
 	}
 
+	/// Prints a valid access token. If the access token in the cache is still
+	/// valid, we re-use that token. If not, we try to use our refresh token to
+	/// request a new pair of tokens.
+	pub async fn get_access_token(mut self, name: &str) -> std::io::Result<()> {
+		let account = &self.store[name];
+		if account.needs_refresh() {
+			let tokens = self.refresh_access_token(account).await?;
+			self.store[name].tokens = Some(tokens);
+			self.persist()?;
+		}
+		let account = &self.store[name];
+		let tokens = account.tokens.as_ref().expect("access tokens");
+		println!("{}", tokens.access_token);
+		Ok(())
+	}
+
+	/// Authorize with the given provider, stores the access and refresh tokens
+	/// into the cache.
 	pub async fn authorize(mut self, name: &str) -> std::io::Result<()> {
 		let account = &self.store[name];
 		let code = self.ask_for_code(&account)?;
-		let tokens = self.request_tokens(&code, &account).await?;
+		let tokens = self.use_authorize_code(&code, &account).await?;
 		self.store[name].tokens = Some(tokens);
 		self.persist()
 	}
 
+	/// Send the user to the authorize page and ask for the redirected URL,
+	/// this URL contains a authorization code which we can use to request
+	/// access and refresh tokens.
 	fn ask_for_code(&self, account: &Account) -> std::io::Result<String> {
 		let params = [
 			("response_type", "code"),
@@ -114,7 +142,24 @@ impl Runner {
 		return Ok(code.to_string());
 	}
 
-	async fn request_tokens(
+	/// Use the refresh token to request new pair of tokens
+	async fn refresh_access_token(
+		&self,
+		account: &Account,
+	) -> std::io::Result<Tokens> {
+		let refresh_token =
+			&account.tokens.as_ref().expect("tokens").refresh_token;
+		let form = [
+			("grant_type", "refresh_token"),
+			("client_id", &account.conf.client_id),
+			("client_secret", &account.conf.client_secret),
+			("refresh_token", refresh_token),
+		];
+		Self::request_tokens(form, &account.conf.token_url).await
+	}
+
+	/// Use an authorization code to request an access and refresh token
+	async fn use_authorize_code(
 		&self,
 		code: &str,
 		account: &Account,
@@ -126,7 +171,21 @@ impl Runner {
 			("client_secret", &account.conf.client_secret),
 			("code", &code),
 		];
-		let body = Url::parse_with_params("http://empty/", &form)
+		Self::request_tokens(form, &account.conf.token_url).await
+	}
+
+	/// Send a POST request to the token URL requesting new tokens
+	async fn request_tokens<I, K, V>(
+		form: I,
+		token_url: &str,
+	) -> std::io::Result<Tokens>
+	where
+		I: IntoIterator,
+		I::Item: Borrow<(K, V)>,
+		K: AsRef<str>,
+		V: AsRef<str>,
+	{
+		let body = Url::parse_with_params("http://empty/", form)
 			.expect("form url")
 			.query()
 			.expect("form data")
@@ -134,17 +193,32 @@ impl Runner {
 
 		let req = Request::builder()
 			.method(Method::POST)
-			.uri(&account.conf.token_url)
+			.uri(token_url)
 			.body(Body::from(body))
 			.expect("request builder");
 		let https = HttpsConnector::new();
 		let client = Client::builder().build::<_, hyper::Body>(https);
 
 		let response = client.request(req).await.expect("request");
+
+		#[derive(Deserialize)]
+		struct TokenResponse {
+			access_token: String,
+			refresh_token: String,
+			expires_in: i64,
+		}
+
 		let bytes = body::to_bytes(response.into_body()).await.expect("bytes");
 		let response_body =
-			String::from_utf8(bytes.to_vec()).expect("body utf8");
-		let tokens = serde_json::from_str(&response_body).expect("tokens");
-		Ok(tokens)
+			dbg!(String::from_utf8(bytes.to_vec()).expect("body utf8"));
+		let tokens: TokenResponse =
+			serde_json::from_str(&response_body).expect("tokens");
+		let expiration = Utc::now() + Duration::seconds(tokens.expires_in);
+
+		Ok(Tokens {
+			access_token: tokens.access_token,
+			refresh_token: tokens.refresh_token,
+			expiration,
+		})
 	}
 }
