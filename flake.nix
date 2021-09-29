@@ -16,9 +16,18 @@
     pkgs = import nixpkgs {
       inherit system overlays;
     };
+    mfauth = with pkgs; rustPlatform.buildRustPackage rec {
+      nativeBuildInputs = [ pkg-config ];
+      buildInputs = [ openssl ];
+      pname = "mfauth";
+      version = "0.1.0";
+      src = ./.;
+      cargoSha256 = "sha256-1Xrhadqx0BEGpNScEVd51rmh8LmKXn26ox5rcmY8tL4=";
+    };
   in
   with pkgs;
   {
+    defaultPackage = mfauth;
     devShell = mkShell {
       buildInputs = [
         rust-bin.stable.latest.default
