@@ -1,4 +1,5 @@
 extern crate clap;
+extern crate dirs;
 extern crate hyper;
 extern crate hyper_tls;
 extern crate serde;
@@ -18,6 +19,7 @@ use url::Url;
 
 use std::borrow::Borrow;
 use std::io::{stdin, stdout, Write};
+use std::path::PathBuf;
 
 use crate::persist::*;
 
@@ -26,11 +28,11 @@ pub struct Opts {
 	#[clap(short, long)]
 	verbose: bool,
 
-	#[clap(short, long, default_value = "config.toml")]
-	config: String,
+	#[clap(short, long)]
+	config: Option<PathBuf>,
 
-	#[clap(short, long, default_value = "cache.toml")]
-	store: String,
+	#[clap(long)]
+	cache: Option<PathBuf>,
 
 	#[clap(subcommand)]
 	action: Action,
@@ -78,7 +80,7 @@ impl Runner {
 	}
 
 	pub fn persist(&self) -> std::io::Result<()> {
-		self.store.write(&self.opts)
+		self.store.write()
 	}
 
 	pub async fn run(self) -> std::io::Result<()> {
@@ -111,7 +113,9 @@ impl Runner {
 		let code = self.ask_for_code(&account)?;
 		let tokens = self.use_authorize_code(&code, &account).await?;
 		self.store[name].tokens = Some(tokens);
-		self.persist()
+		self.persist()?;
+		println!("Authorization OK!");
+		Ok(())
 	}
 
 	/// Send the user to the authorize page and ask for the redirected URL,
@@ -210,7 +214,7 @@ impl Runner {
 
 		let bytes = body::to_bytes(response.into_body()).await.expect("bytes");
 		let response_body =
-			dbg!(String::from_utf8(bytes.to_vec()).expect("body utf8"));
+			String::from_utf8(bytes.to_vec()).expect("body utf8");
 		let tokens: TokenResponse =
 			serde_json::from_str(&response_body).expect("tokens");
 		let expiration = Utc::now() + Duration::seconds(tokens.expires_in);

@@ -3,10 +3,12 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
+use std::fs::DirBuilder;
 use std::ops::{Index, IndexMut};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::Opts;
+use dirs;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -58,15 +60,37 @@ impl Account {
 
 #[derive(Debug)]
 pub struct Store {
+	pub conf_path: PathBuf,
+	pub cache_path: PathBuf,
 	pub accounts: HashMap<String, Account>,
+}
+
+fn find_toml(
+	requested: &Option<PathBuf>,
+	xdgdir: Option<PathBuf>,
+	file: &str,
+) -> PathBuf {
+	requested.clone().unwrap_or_else(|| {
+		if let Some(mut path) = xdgdir {
+			path.push("mfauth");
+			path.push(file);
+			path
+		} else {
+			panic!("Could not find your homedir. Please provide the paths to the config and cache files manually using --config and --cache.")
+		}
+	})
 }
 
 impl Store {
 	pub fn read(opts: &Opts) -> std::io::Result<Self> {
-		let conf_str = fs::read_to_string(&opts.config)?;
+		let conf_path =
+			find_toml(&opts.config, dirs::config_dir(), "config.toml");
+		let cache_path =
+			find_toml(&opts.cache, dirs::cache_dir(), "cache.toml");
+		let conf_str = fs::read_to_string(&conf_path)?;
 		let config: Config = toml::from_str(&conf_str).expect("config");
-		let mut cache: Cache = if Path::new(&opts.store).exists() {
-			let cache_str = fs::read_to_string(&opts.store)?;
+		let mut cache: Cache = if Path::new(&cache_path).exists() {
+			let cache_str = fs::read_to_string(&cache_path)?;
 			toml::from_str(&cache_str).expect("cache")
 		} else {
 			Cache {
@@ -74,6 +98,8 @@ impl Store {
 			}
 		};
 		Ok(Store {
+			conf_path,
+			cache_path,
 			accounts: config
 				.accounts
 				.into_iter()
@@ -85,7 +111,7 @@ impl Store {
 		})
 	}
 
-	pub fn write(&self, opts: &Opts) -> std::io::Result<()> {
+	pub fn write(&self) -> std::io::Result<()> {
 		let cache = Cache {
 			accounts: self
 				.accounts
@@ -98,8 +124,11 @@ impl Store {
 				})
 				.collect(),
 		};
+		DirBuilder::new()
+			.recursive(true)
+			.create(&self.cache_path.parent().unwrap())?;
 		let cache_str = toml::to_string(&cache).expect("cache string");
-		fs::write(&opts.store, cache_str)
+		fs::write(&self.cache_path, cache_str)
 	}
 }
 
