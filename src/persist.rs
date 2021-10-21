@@ -1,10 +1,11 @@
+use anyhow::{anyhow, Context, Result};
+
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::fs::DirBuilder;
-use std::ops::{Index, IndexMut};
 use std::path::{Path, PathBuf};
 
 use crate::Opts;
@@ -82,16 +83,16 @@ fn find_toml(
 }
 
 impl Store {
-	pub fn read(opts: &Opts) -> std::io::Result<Self> {
+	pub fn read(opts: &Opts) -> Result<Self> {
 		let conf_path =
 			find_toml(&opts.config, dirs::config_dir(), "config.toml");
 		let cache_path =
 			find_toml(&opts.cache, dirs::cache_dir(), "cache.toml");
 		let conf_str = fs::read_to_string(&conf_path)?;
-		let config: Config = toml::from_str(&conf_str).expect("config");
+		let config: Config = toml::from_str(&conf_str)?;
 		let mut cache: Cache = if Path::new(&cache_path).exists() {
 			let cache_str = fs::read_to_string(&cache_path)?;
-			toml::from_str(&cache_str).expect("cache")
+			toml::from_str(&cache_str)?
 		} else {
 			Cache {
 				accounts: HashMap::new(),
@@ -111,7 +112,19 @@ impl Store {
 		})
 	}
 
-	pub fn write(&self) -> std::io::Result<()> {
+	pub fn get(&self, name: &str) -> Result<&Account> {
+		self.accounts
+			.get(name)
+			.ok_or(anyhow!("No account with name '{}' configured", name))
+	}
+
+	pub fn get_mut(&mut self, name: &str) -> Result<&mut Account> {
+		self.accounts
+			.get_mut(name)
+			.ok_or(anyhow!("No account with name '{}' configured", name))
+	}
+
+	pub fn write(&self) -> Result<()> {
 		let cache = Cache {
 			accounts: self
 				.accounts
@@ -124,23 +137,15 @@ impl Store {
 				})
 				.collect(),
 		};
-		DirBuilder::new()
-			.recursive(true)
-			.create(&self.cache_path.parent().unwrap())?;
-		let cache_str = toml::to_string(&cache).expect("cache string");
-		fs::write(&self.cache_path, cache_str)
-	}
-}
-
-impl Index<&str> for Store {
-	type Output = Account;
-	fn index(&self, name: &str) -> &Self::Output {
-		&self.accounts[name]
-	}
-}
-
-impl IndexMut<&str> for Store {
-	fn index_mut(&mut self, name: &str) -> &mut Self::Output {
-		self.accounts.get_mut(name).unwrap()
+		DirBuilder::new().recursive(true).create(
+			&self.cache_path.parent().ok_or(anyhow!(
+				"Could find parent of cache path: {:?}",
+				&self.cache_path
+			))?,
+		)?;
+		let cache_str = toml::to_string(&cache)?;
+		fs::write(&self.cache_path, cache_str).with_context(|| {
+			format!("Failed to write cache to {:?}", &self.cache_path)
+		})
 	}
 }
