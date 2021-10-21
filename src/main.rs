@@ -106,7 +106,7 @@ impl Runner {
 		let tokens = account
 			.tokens
 			.as_ref()
-			.ok_or(anyhow!("No account tokens"))?;
+			.ok_or(anyhow!("This account does not have tokens yet. You may need to run the authorize command first."))?;
 		println!("{}", tokens.access_token);
 		Ok(())
 	}
@@ -136,7 +136,7 @@ impl Runner {
 		let url = Url::parse_with_params(&account.conf.authorize_url, &params)
 			.with_context(|| {
 				format!(
-					"Could not parse authorize url: {}",
+					"Could not parse the authorize URL: {}",
 					&account.conf.authorize_url
 				)
 			})?;
@@ -148,10 +148,8 @@ impl Runner {
 		stdout().flush()?;
 		let mut response = String::new();
 		stdin().read_line(&mut response)?;
-		let url_str = response.trim();
-		let url = Url::parse(url_str).with_context(|| {
-			format!("Could not parse response url: {}", url_str)
-		})?;
+		let url = Url::parse(response.trim())
+			.context("Could not parse the return URL you pasted.")?;
 		let (_k, code) = url
 			.query_pairs()
 			.find(|(k, _v)| k == "code")
@@ -212,23 +210,53 @@ impl Runner {
 		let client = Client::builder().build::<_, hyper::Body>(https);
 
 		let response = client.request(req).await?;
-
-		#[derive(Deserialize)]
-		struct TokenResponse {
-			access_token: String,
-			refresh_token: String,
-			expires_in: i64,
-		}
+		let status = response.status();
 
 		let bytes = body::to_bytes(response.into_body()).await?;
 		let response_body = String::from_utf8(bytes.to_vec())?;
-		let tokens: TokenResponse = serde_json::from_str(&response_body)?;
-		let expiration = Utc::now() + Duration::seconds(tokens.expires_in);
 
-		Ok(Tokens {
-			access_token: tokens.access_token,
-			refresh_token: tokens.refresh_token,
-			expiration,
-		})
+		if status.is_success() {
+			#[derive(Deserialize)]
+			struct TokenResponse {
+				access_token: String,
+				refresh_token: String,
+				expires_in: i64,
+			}
+
+			let tokens: TokenResponse = serde_json::from_str(&response_body)
+				.with_context(|| {
+					format!(
+						"Could not parse succesful token response: {}",
+						response_body
+					)
+				})?;
+			let expiration = Utc::now() + Duration::seconds(tokens.expires_in);
+
+			Ok(Tokens {
+				access_token: tokens.access_token,
+				refresh_token: tokens.refresh_token,
+				expiration,
+			})
+		} else {
+			#[derive(Deserialize)]
+			struct ErrorResponse {
+				error: String,
+				error_description: String,
+			}
+
+			let error: ErrorResponse = serde_json::from_str(&response_body)
+				.with_context(|| {
+					format!(
+						"Could not parse token response with status {}: {}",
+						status, response_body
+					)
+				})?;
+
+			Err(anyhow!(
+				"Server returned an {} error.\n{}",
+				error.error,
+				error.error_description
+			))
+		}
 	}
 }
