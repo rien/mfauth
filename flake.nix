@@ -22,7 +22,7 @@
       pname = "mfauth";
       version = "0.1.0";
       src = ./.;
-      cargoSha256 = "sha256-1Xrhadqx0BEGpNScEVd51rmh8LmKXn26ox5rcmY8tL4=";
+      cargoSha256 = "sha256-OsmnviHFSq8x3S/8J12gm0joJWP+Mirsju/j8u5WWAA=";
     };
   in
   with pkgs;
