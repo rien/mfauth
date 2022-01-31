@@ -1,0 +1,14 @@
+#
+# The example below is the client id and secret of Mozilla Thunderbird.
+# These can also be found in the source code, so this is not confidential.
+# Their redirect URI is 0.0.0.0 (port 80), so it is not really possible to abuse
+# these credentials.
+#
+# Change the values below if you use another provider.
+#
+[accounts.microsoft]
+client_id = "08162f7c-0fd2-4200-a84a-f25a4db0b584"
+client_secret = "TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82"
+authorize_url = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+scope = "https://outlook.office365.com/IMAP.AccessAsUser.All https://outlook.office365.com/POP.AccessAsUser.All https://outlook.office365.com/SMTP.Send offline_access"
