@@ -27,9 +27,8 @@ If you see a `command not found` error, you can try putting `$HOME/.cargo/bin`  
 
 Once in a while this might stop working if your session expires. If that happens, you can simply run `mfauth authrorize <account>` again and you're good to go!
 
-### Example with msmtp
 
-You will need to have the [`cyrus-sasl-xoauth2`](https://github.com/moriyoshi/cyrus-sasl-xoauth2) extension installed for this to work.
+### Example with msmtp (sending)
 
 A working account entry in the msmtp config using mfauth:
 
@@ -46,5 +45,20 @@ tls_trust_file /etc/ssl/certs/ca-certificates.crt
 user username@outlook.com
 ```
 
+### Example with mbsync (receiving)
 
+**Important:** isync requires the [`cyrus-sasl-xoauth2`](https://github.com/moriyoshi/cyrus-sasl-xoauth2) extension installed to support the `XOAUTH2` authentication protocol.
+
+This is an example of a working `IMAPAccount` block using mfauth.
+
+```
+IMAPAccount microsoft
+AuthMechs XOAUTH2
+CertificateFile /etc/ssl/certs/ca-certificates.crt
+Host outlook.office365.com
+PassCmd "/home/user/.cargo/bin/mfauth access microsoft"
+Port 993
+SSLType IMAPS
+User username@outlook.com
+```
 
