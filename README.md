@@ -1,6 +1,8 @@
 # MFAuth
 
-_Multi Factor Authentication for CLI mail clients_
+_Multi Factor Authentication CLI_
+
+Simple CLI tool to request and manage OAuth2 tokens. Can be used with `mbsync` and `msmtp` to receive and send mail with providers requiring OAuth2 authentication.
 
 ## Installation
 
@@ -14,19 +16,19 @@ _Multi Factor Authentication for CLI mail clients_
   ```
   cargo install --path .
   ```
-4. Test if it works by running `mfauth help`.
+4. Test if it works by running `mfauth help`
 
 If you see a `command not found` error, you can try putting `$HOME/.cargo/bin`  in your `$PATH`.
 
 ## Usage
 
 1. Run `mfauth init` to create an example configuration file in `$HOME/.config/mfauth/config.toml`
-2. Edit the configuration file
+2. Edit the configuration file (`$EDITOR $HOME/.config/mfauth/config.toml`)
 3. Run `mfauth authorize <account>` to get a valid session (an access and refresh token), this will save this session in `$HOME/.cache/mfauth/cache.toml`
 4. Run `mfauth access <account>` to get a valid access token, this will automatically refresh tokens if needed
 5. Configure your mail client to use `XOAUTH2` authentication and use mfauth to fetch the access tokens
 
-Once in a while this might stop working if your session expires. If that happens, you can simply run `mfauth authrorize <account>` again and you're good to go!
+Once in a while this might stop working if your session expires. If that happens, you can simply run `mfauth authorize <account>` again and you're good to go!
 
 
 ### Example with msmtp (sending)

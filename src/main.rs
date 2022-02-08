@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 extern crate anyhow;
 #[macro_use]
 extern crate clap;
@@ -9,6 +11,7 @@ extern crate tokio;
 extern crate toml;
 extern crate url;
 
+/// Reading and writing the configuration and cache
 mod persist;
 
 use anyhow::{anyhow, Context, Result};
@@ -27,6 +30,7 @@ use std::path::PathBuf;
 
 use crate::persist::*;
 
+/// Global options
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 pub struct Opts {
@@ -70,7 +74,7 @@ impl Opts {
 	}
 }
 
-/// Authorize with the OAuth2 provider and return an access token
+/// Subcommands for the CLI
 #[derive(Subcommand, Debug, Clone)]
 enum Action {
 	/// Authorize an account (fetch an access and refresh token)
