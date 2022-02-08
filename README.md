@@ -7,16 +7,11 @@ Simple CLI tool to request and manage OAuth2 tokens. Can be used with `mbsync` a
 ## Installation
 
 1. Install Rust, either with your package manager or using [rustup](https://rustup.rs/)
-2. Clone this repository and enter it
+2. Install `mfauth` using `cargo`
   ```
-  git@github.com:rien/mfauth.git
-  cd mfauth
+  cargo install mfauth
   ```
-3. Build and install the program
-  ```
-  cargo install --path .
-  ```
-4. Test if it works by running `mfauth help`
+3. Test if it works by running `mfauth help`
 
 If you see a `command not found` error, you can try putting `$HOME/.cargo/bin`  in your `$PATH`.
 
