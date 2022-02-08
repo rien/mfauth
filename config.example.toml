@@ -1,8 +1,9 @@
-#
 # The example below is the client id and secret of Mozilla Thunderbird.
-# These can also be found in the source code, so this is not confidential.
-# Their redirect URI is 0.0.0.0 (port 80), so it is not really possible to abuse
-# these credentials.
+# These can also be found in the source code at the following URL:
+# https://hg.mozilla.org/comm-central/file/tip/mailnews/base/src/OAuth2Providers.jsm
+#
+# These secrets are public and their redirect URI is localhost (port 80), so it
+# is not really possible to abuse these credentials.
 #
 # Change the values below if you use another provider.
 #

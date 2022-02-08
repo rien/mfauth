@@ -20,10 +20,11 @@ If you see a `command not found` error, you can try putting `$HOME/.cargo/bin`  
 
 ## Usage
 
-1. Copy the `config.example.toml` to `$HOME/.config/mfauth/config.toml` and edit the configuration if needed
-2. Run `mfauth authorize <account>` to get a valid session (an access and refresh token), this will save this session in `$HOME/.cache/mfauth/cache.toml`
-3. Run `mfauth access <account>` to get a valid access token, this will automatically refresh tokens if needed
-4. Configure your mail client to use `XOAUTH2` authentication and use mfauth to fetch the access tokens
+1. Run `mfauth init` to create an example configuration file in `$HOME/.config/mfauth/config.toml`
+2. Edit the configuration file
+3. Run `mfauth authorize <account>` to get a valid session (an access and refresh token), this will save this session in `$HOME/.cache/mfauth/cache.toml`
+4. Run `mfauth access <account>` to get a valid access token, this will automatically refresh tokens if needed
+5. Configure your mail client to use `XOAUTH2` authentication and use mfauth to fetch the access tokens
 
 Once in a while this might stop working if your session expires. If that happens, you can simply run `mfauth authrorize <account>` again and you're good to go!
 
