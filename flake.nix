@@ -29,7 +29,7 @@
             pname = cargoTOML.package.name;
             version = cargoTOML.package.version;
             src = ./.;
-            cargoSha256 = "sha256-V50p3mw12phr2HyEcOojCTYbDjedPIMvBw24ALodbPQ=";
+            cargoSha256 = "sha256-6Jf7KlPRTrllXqz+XoUqNXp36UkNXheaB0ENF+fXIpg=";
           };
         };
         defaultPackage = packages.mfauth;
