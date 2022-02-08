@@ -1,4 +1,5 @@
 extern crate anyhow;
+#[macro_use]
 extern crate clap;
 extern crate dirs;
 extern crate hyper;
@@ -12,7 +13,7 @@ mod persist;
 
 use anyhow::{anyhow, Context, Result};
 use chrono::{Duration, Utc};
-use clap::Clap;
+use clap::Parser;
 use hyper::body;
 use hyper::{Body, Client, Method, Request};
 use hyper_tls::HttpsConnector;
@@ -25,7 +26,7 @@ use std::path::PathBuf;
 
 use crate::persist::*;
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 pub struct Opts {
 	#[clap(short, long)]
 	verbose: bool,
@@ -41,24 +42,18 @@ pub struct Opts {
 }
 
 /// Authorize with the OAuth2 provider and return an access token
-#[derive(Clap, Debug, Clone)]
+#[derive(Subcommand, Debug, Clone)]
 enum Action {
-	Authorize(Authorize),
-	Access(Access),
-}
-
-/// Authorize an account (fetch an access and refresh token)
-#[derive(Clap, Debug, Clone)]
-struct Authorize {
-	/// Account to authorize
-	account: String,
-}
-
-/// Get an access token
-#[derive(Clap, Debug, Clone)]
-struct Access {
-	/// Account to get an access token for
-	account: String,
+	/// Authorize an account (fetch an access and refresh token)
+	Authorize {
+		/// Account to authorize
+		account: String,
+	},
+	/// Get an access token
+	Access {
+		/// Account to get an access token for
+		account: String,
+	},
 }
 
 #[derive(Debug)]
@@ -87,8 +82,8 @@ impl Runner {
 
 	pub async fn run(self) -> Result<()> {
 		match self.opts.action.clone() {
-			Action::Authorize(auth) => self.authorize(&auth.account).await,
-			Action::Access(auth) => self.get_access_token(&auth.account).await,
+			Action::Authorize { account } => self.authorize(&account).await,
+			Action::Access { account } => self.get_access_token(&account).await,
 		}
 	}
 
