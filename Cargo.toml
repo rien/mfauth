@@ -2,8 +2,12 @@
 name = "mfauth"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Simple CLI client to request and manage OAuth2 tokens"
+license = "MIT"
+keywords = [ "oauth2", "cli", "email", "mfa", "authentication" ]
+categories = [ "command-line-utilities", "email", "authentication" ]
+authors = [ "Rien Maertens <mfauth@rxn.be>" ]
+repository = "https://github.com/rien/mfauth/"
 
 [dependencies]
 anyhow = "1"
