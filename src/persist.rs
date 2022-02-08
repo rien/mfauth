@@ -70,24 +70,26 @@ fn find_toml(
 	requested: &Option<PathBuf>,
 	xdgdir: Option<PathBuf>,
 	file: &str,
-) -> PathBuf {
-	requested.clone().unwrap_or_else(|| {
+) -> Result<PathBuf> {
+	requested.clone().or_else(|| {
 		if let Some(mut path) = xdgdir {
 			path.push("mfauth");
 			path.push(file);
-			path
+			Some(path)
 		} else {
-			panic!("Could not find your homedir. Please provide the paths to the config and cache files manually using --config and --cache.")
+			None
 		}
-	})
+	}).ok_or(anyhow!(
+		"Could not find your homedir. Please provide the paths to the config and cache files manually using --config and --cache.")
+	)
 }
 
 impl Store {
 	pub fn read(opts: &Opts) -> Result<Self> {
 		let conf_path =
-			find_toml(&opts.config, dirs::config_dir(), "config.toml");
+			find_toml(&opts.config, dirs::config_dir(), "config.toml")?;
 		let cache_path =
-			find_toml(&opts.cache, dirs::cache_dir(), "cache.toml");
+			find_toml(&opts.cache, dirs::cache_dir(), "cache.toml")?;
 		let conf_str = fs::read_to_string(&conf_path)?;
 		let config: Config = toml::from_str(&conf_str)?;
 		let mut cache: Cache = if Path::new(&cache_path).exists() {
