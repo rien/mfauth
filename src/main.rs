@@ -93,7 +93,7 @@ impl Runner {
 	pub async fn get_access_token(mut self, name: &str) -> Result<()> {
 		let account = self.store.get(name)?;
 		if account.needs_refresh() {
-			let tokens = self.refresh_access_token(account).await?;
+			let tokens = Self::refresh_access_token(account).await?;
 			self.store.get_mut(name)?.tokens = Some(tokens);
 			self.persist()?;
 		}
@@ -106,12 +106,12 @@ impl Runner {
 		Ok(())
 	}
 
-	/// Authorize with the given provider, stores the access and refresh tokens
-	/// into the cache.
+	/// Authorize with the given provider and store the access and refresh
+	/// tokens into the cache.
 	pub async fn authorize(mut self, name: &str) -> Result<()> {
 		let account = &self.store.get(name)?;
-		let code = self.ask_for_code(&account)?;
-		let tokens = self.use_authorize_code(&code, &account).await?;
+		let code = Self::ask_for_code(&account)?;
+		let tokens = Self::use_authorize_code(&code, &account).await?;
 		self.store.get_mut(name)?.tokens = Some(tokens);
 		self.persist()?;
 		println!("Authorization OK!");
@@ -119,9 +119,9 @@ impl Runner {
 	}
 
 	/// Send the user to the authorize page and ask for the redirected URL,
-	/// this URL contains a authorization code which we can use to request
+	/// this URL contains an authorization code which we can use to request
 	/// access and refresh tokens.
-	fn ask_for_code(&self, account: &Account) -> Result<String> {
+	fn ask_for_code(account: &Account) -> Result<String> {
 		let params = [
 			("response_type", "code"),
 			("redirect_uri", "http://localhost"),
@@ -153,7 +153,7 @@ impl Runner {
 	}
 
 	/// Use the refresh token to request new pair of tokens
-	async fn refresh_access_token(&self, account: &Account) -> Result<Tokens> {
+	async fn refresh_access_token(account: &Account) -> Result<Tokens> {
 		let refresh_token = &account
 			.tokens
 			.as_ref()
@@ -170,7 +170,6 @@ impl Runner {
 
 	/// Use an authorization code to request an access and refresh token
 	async fn use_authorize_code(
-		&self,
 		code: &str,
 		account: &Account,
 	) -> Result<Tokens> {
